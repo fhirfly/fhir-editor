@@ -54,3 +54,6 @@
     margin-left: 10px;
   }
   
+  .requiredLabel {
+    color: red;  /* You can adjust this color or add other styles as desired */
+  }
