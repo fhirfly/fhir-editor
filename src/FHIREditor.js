@@ -51,7 +51,8 @@ function parseStructureDefinitions(data, selectedResource) {
 function FHIREditor() {
     const [formData, setFormData] = useState({});
     const [fields, setFields] = useState([]);
-    const [selectedResource, setSelectedResource] = useState('');
+    const [selectedResource, setSelectedResource] = useState('Patient');
+
     const uniqueResources = getUniqueResourceNames(structureDefinitionData);
 
     useEffect(() => {
@@ -60,75 +61,54 @@ function FHIREditor() {
     }, [selectedResource]);
     function renderFormInputs() {
         return fields.map((field, index) => {
-            let inputElement;
+            const isMultiple = field.max === 'unbounded' || (typeof field.max === 'number' && field.max > 1);
     
-            switch (field.dataType) {
-                case "string":
-                    inputElement = (
+            const handleAdd = () => {
+                setFormData(prevData => ({
+                    ...prevData,
+                    [field.name]: [...(prevData[field.name] || []), '']
+                }));
+            };
+    
+            const handleRemove = (idx) => {
+                setFormData(prevData => ({
+                    ...prevData,
+                    [field.name]: prevData[field.name].filter((_, itemIndex) => itemIndex !== idx)
+                }));
+            };
+    
+            const handleInputChange = (event, idx) => {
+                const newValue = event.target.value;
+                setFormData(prevData => {
+                    const updatedValues = [...(prevData[field.name] || [])];
+                    updatedValues[idx] = newValue;
+                    return { ...prevData, [field.name]: updatedValues };
+                });
+            };
+    
+            let inputElement;
+            if (isMultiple) {
+                inputElement = (formData[field.name] || []).map((value, idx) => (
+                    <div key={idx}>
                         <input 
-                            type="text" 
-                            id={field.name} 
-                            name={field.name} 
+                            type="text"
+                            value={value}
+                            onChange={(e) => handleInputChange(e, idx)}
                             required={field.required}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                         />
-                    );
-                    break;
-                case "boolean":
-                    inputElement = (
-                        <input 
-                            type="checkbox" 
-                            id={field.name} 
-                            name={field.name} 
-                            checked={formData[field.name] || false}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.checked })}
-                        />
-                    );
-                    break;
-                case "integer":
-                    inputElement = (
-                        <input 
-                            type="number" 
-                            id={field.name} 
-                            name={field.name} 
-                            required={field.required}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                        />
-                    );
-                    break;
-                case "date":
-                    inputElement = (
-                        <input 
-                            type="date" 
-                            id={field.name} 
-                            name={field.name} 
-                            required={field.required}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                        />
-                    );
-                    break;
-                case "dateTime":
-                    inputElement = (
-                        <input 
-                            type="datetime-local" 
-                            id={field.name} 
-                            name={field.name} 
-                            required={field.required}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                        />
-                    );
-                    break;
-                default:
-                    inputElement = (
-                        <input 
-                            type="text" 
-                            id={field.name} 
-                            name={field.name} 
-                            required={field.required}
-                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                        />
-                    );
-                    break;
+                        <button type="button" onClick={() => handleRemove(idx)}>Remove</button>
+                    </div>
+                ));
+                inputElement.push(<button type="button" key="add" onClick={handleAdd}>Add</button>);
+            } else {
+                inputElement = (
+                    <input 
+                        type="text" 
+                        value={formData[field.name] || ''}
+                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                        required={field.required}
+                    />
+                );
             }
     
             return (
@@ -140,6 +120,7 @@ function FHIREditor() {
         });
     }
     
+    
 
     return (
         <div>
@@ -148,9 +129,10 @@ function FHIREditor() {
             <select value={selectedResource} onChange={(e) => setSelectedResource(e.target.value)}>
                 <option value="">Select a Resource</option>
                 {uniqueResources.map(resource => (
-                    <option key={resource} value={resource}>{resource}</option>
+                    <option key={resource} value={resource} selected={resource === "Patient"}>{resource}</option>
                 ))}
             </select>
+
 
             <form>{renderFormInputs()}</form>
         </div>
