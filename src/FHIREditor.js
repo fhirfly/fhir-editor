@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import structureDefinitionData from './r4b/profiles-resources';
+import styles from './FHIREditor.module.css';  // Import the CSS module
 
 function getUniqueResourceNames(data) {
     const resourceNames = new Set();
@@ -123,19 +124,71 @@ function FHIREditor() {
     
 
     return (
-        <div>
-            <h2>FHIR Editor</h2>
+        <div className={styles.editorContainer}>
+        <h2 className={styles.title}>FHIR Editor</h2>
 
-            <select value={selectedResource} onChange={(e) => setSelectedResource(e.target.value)}>
-                <option value="">Select a Resource</option>
-                {uniqueResources.map(resource => (
-                    <option key={resource} value={resource} selected={resource === "Patient"}>{resource}</option>
-                ))}
-            </select>
+        <select 
+            value={selectedResource} 
+            onChange={(e) => setSelectedResource(e.target.value)}
+            className={styles.resourceDropdown}
+        >
+            <option value="">Select a Resource</option>
+            {uniqueResources.map(resource => (
+                <option key={resource} value={resource}>{resource}</option>
+            ))}
+        </select>
 
-
-            <form>{renderFormInputs()}</form>
-        </div>
+        <form>
+        {fields.map((field, index) => (
+            <div key={index} className={styles.formField}>
+                <label htmlFor={field.name} className={styles.formLabel}>{field.label}</label>
+                {(() => {
+                    switch (field.dataType) {
+                        case "string":
+                            return (
+                                <input 
+                                    type="text" 
+                                    id={field.name} 
+                                    name={field.name} 
+                                    required={field.required}
+                                    className={styles.formInput}
+                                    onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                                />
+                            );
+                        case "boolean":
+                            return (
+                                <select 
+                                    id={field.name} 
+                                    name={field.name}
+                                    required={field.required}
+                                    className={styles.formInput}
+                                    onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                                >
+                                    <option value="">Select an option</option>
+                                    <option value="true">True</option>
+                                    <option value="false">False</option>
+                                </select>
+                            );
+                        case "integer":
+                            return (
+                                <input 
+                                    type="number" 
+                                    id={field.name} 
+                                    name={field.name} 
+                                    required={field.required}
+                                    className={styles.formInput}
+                                    onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                                />
+                            );
+                        // ... Add cases for other data types as needed
+                        default:
+                            return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
+                    }
+                })()}
+            </div>
+        ))}
+    </form>
+    </div>
     );
 }
 
