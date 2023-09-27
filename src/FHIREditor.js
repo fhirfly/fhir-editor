@@ -1,15 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import structureDefinitionData from './r4b/profiles-resources.json';  // Import the data directly
+import structureDefinitionData from './r4b/profiles-resources';
 
+function getUniqueResourceNames(data) {
+    const resourceNames = new Set();
+    if (data && data.entry) {
+        data.entry.forEach(entry => {
+            if (entry.resource && entry.resource.resourceType === 'StructureDefinition' && entry.resource.name) {
+                resourceNames.add(entry.resource.name);
+            }
+        });
+    }
+    return [...resourceNames];
+}
 
-function parseStructureDefinitions(data) {
+function parseStructureDefinitions(data, selectedResource) {
     if (!data || !data.entry) {
         return [];
     }
 
     const structureDefinitions = data.entry
-        .filter((entry) => entry.resource && entry.resource.resourceType === 'StructureDefinition')
-        .map((entry) => entry.resource);
+        .filter(entry => 
+            entry.resource && 
+            entry.resource.resourceType === 'StructureDefinition' &&
+            (!selectedResource || entry.resource.name === selectedResource)
+        )
+        .map(entry => entry.resource);
 
     const fields = [];
 
@@ -34,15 +49,15 @@ function parseStructureDefinitions(data) {
 }
 
 function FHIREditor() {
-    const [formData, setFormData] = useState({});  // Store form data
-    const [fields, setFields] = useState([]);  // Store fields based on StructureDefinition
+    const [formData, setFormData] = useState({});
+    const [fields, setFields] = useState([]);
+    const [selectedResource, setSelectedResource] = useState('');
+    const uniqueResources = getUniqueResourceNames(structureDefinitionData);
 
     useEffect(() => {
-        // Parse StructureDefinition to determine fields and their data types
-        const parsedFields = parseStructureDefinitions(structureDefinitionData);
+        const parsedFields = parseStructureDefinitions(structureDefinitionData, selectedResource);
         setFields(parsedFields);
-    }, []);
-
+    }, [selectedResource]);
     function renderFormInputs() {
         return fields.map((field, index) => {
             let inputElement;
@@ -124,16 +139,22 @@ function FHIREditor() {
             );
         });
     }
+    
 
     return (
         <div>
             <h2>FHIR Editor</h2>
+
+            <select value={selectedResource} onChange={(e) => setSelectedResource(e.target.value)}>
+                <option value="">Select a Resource</option>
+                {uniqueResources.map(resource => (
+                    <option key={resource} value={resource}>{resource}</option>
+                ))}
+            </select>
+
             <form>{renderFormInputs()}</form>
         </div>
     );
 }
-
-
-
 
 export default FHIREditor;
