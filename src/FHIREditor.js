@@ -10,6 +10,7 @@ const allValueSets = [...valuesets.entry, ...v3Codesystems.entry, ...v2Tables.en
 
 // 2. Helper function to find codes for a given valueSet URL
 function findCodesForValueSet(valueSetURL) {
+    console.log("look up value")
     for (let entry of allValueSets) {
         if (entry.resource && entry.resource.url === valueSetURL) {
             return entry.resource.concept.map(concept => concept.code);
@@ -27,6 +28,15 @@ function getUniqueResourceNames(data) {
         });
     }
     return [...resourceNames];
+}
+
+// Function to convert camelCase to standard label
+function camelCaseToLabel(fieldName) {
+    const result = fieldName
+        .replace(/([A-Z])/g, ' $1')  // Insert space before each uppercase letter
+        .replace(/^./, (str) => str.toUpperCase()); // Convert first character to uppercase
+
+    return result.trim(); // Remove any extra spaces at the beginning or end
 }
 
 function parseStructureDefinitions(data, selectedResource) {
@@ -47,15 +57,19 @@ function parseStructureDefinitions(data, selectedResource) {
     structureDefinitions.forEach((structureDefinition) => {
         if (structureDefinition.snapshot && structureDefinition.snapshot.element) {
             structureDefinition.snapshot.element.forEach((element) => {
+                console.log(element)
                 const fieldName = element.path.split('.').pop();
+                const label = camelCaseToLabel(fieldName)
+                const short = element.short
                 const isRequired = element.min > 0;
                 const dataTypeCode = element.type && element.type.length > 0 ? element.type[0].code : undefined;
 
                 fields.push({
                     name: fieldName,
-                    label: fieldName,
+                    label: label,
                     dataType: dataTypeCode,
                     required: isRequired,
+                    description: short
                 });
             });
         }
@@ -421,6 +435,17 @@ function FHIREditor() {
                                 return <input type="date" className={styles.formInput} />;
                             case 'string':
                             case 'code':
+                                console.log(field)
+                                //console.log(field.binding.valueSet)
+                                if (field.binding && field.binding.valueSet) {
+                                    const codes = findCodesForValueSet(field.binding.valueSet);
+                                    console.log(codes)
+                                    return (
+                                        <select id={field.name} name={field.name} className={styles.formInput}>
+                                            {codes.map(code => <option key={code} value={code}>{code}</option>)}
+                                        </select>
+                                    );
+                                }
                             case 'id':
                             case 'markdown':
                                 return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
@@ -433,6 +458,15 @@ function FHIREditor() {
                             case 'decimal':
                                 return <input type="number" id={field.name} name={field.name} className={styles.formInput} />;
                             case 'CodeableConcept':
+                                if (field.binding && field.binding.valueSet) {
+                                    const codes = findCodesForValueSet(field.binding.valueSet);
+                                    console.log(codes)
+                                    return (
+                                        <select id={field.name} name={field.name} className={styles.formInput}>
+                                            {codes.map(code => <option key={code} value={code}>{code}</option>)}
+                                        </select>
+                                    );
+                                }
                             case 'Coding':
                                 if (field.binding && field.binding.valueSet) {
                                     const codes = findCodesForValueSet(field.binding.valueSet);
