@@ -104,69 +104,6 @@ function FHIREditor() {
     }
     
 
-    function renderFormInputs() {
-        return fields.map((field, index) => {
-            const isMultiple = field.max === 'unbounded' || field.max === '*' || (typeof field.max === 'number' && field.max > 1);
-    
-            const handleAdd = () => {
-                setFormData(prevData => ({
-                    ...prevData,
-                    [field.name]: [...(prevData[field.name] || []), '']
-                }));
-            };
-            
-            const handleRemove = (idx) => {
-                setFormData(prevData => ({
-                    ...prevData,
-                    [field.name]: prevData[field.name].filter((_, itemIndex) => itemIndex !== idx)
-                }));
-            };
-    
-            const handleInputChange = (event, idx) => {
-                const newValue = event.target.value;
-                setFormData(prevData => {
-                    const updatedValues = [...(prevData[field.name] || [])];
-                    updatedValues[idx] = newValue;
-                    return { ...prevData, [field.name]: updatedValues };
-                });
-            };
-    
-            let inputElement;
-            if (isMultiple) {
-                inputElement = (formData[field.name] || []).map((value, idx) => (
-                    <div key={idx}>
-                        <input 
-                            type="text"
-                            value={value}
-                            onChange={(e) => handleInputChange(e, idx)}
-                            required={field.required}
-                        />
-                        <button type="button" onClick={() => handleRemove(idx)}>Remove</button>
-                    </div>
-                ));
-                inputElement.push(<button type="button" key="add" onClick={handleAdd}>Add</button>);
-            } else {
-                inputElement = (
-                    <input 
-                        type="text" 
-                        value={formData[field.name] || ''}
-                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
-                        required={field.required}
-                    />
-                );
-            }
-    
-            return (
-                <div key={index}>
-                    <label htmlFor={field.name}>{field.label}</label>
-                    {inputElement}
-                </div>
-            );
-        });
-    }
-    
-    
-
     return (
         <div className={styles.editorContainer}>
         <h2 className={styles.title}>FHIR Editor</h2>
@@ -184,6 +121,7 @@ function FHIREditor() {
 
         <form>
         {fields.map((field, index) => (
+                          
             <div key={index} className={styles.formField}>
                 <label 
                     htmlFor={field.name} 
@@ -192,7 +130,59 @@ function FHIREditor() {
                     {field.label} {field.required && '*'}
                 </label>
                 {(() => {
+
+                    const isMultiple = field.max === 'unbounded' || field.max === '*' || (typeof field.max === 'number' && field.max > 1);
+    
+                    const handleAdd = () => {
+                        setFormData(prevData => ({
+                            ...prevData,
+                            [field.name]: [...(prevData[field.name] || []), '']
+                        }));
+                    };
+                    
+                    const handleRemove = (idx) => {
+                        setFormData(prevData => ({
+                            ...prevData,
+                            [field.name]: prevData[field.name].filter((_, itemIndex) => itemIndex !== idx)
+                        }));
+                    };
+            
+                    const handleInputChange = (event, idx) => {
+                        const newValue = event.target.value;
+                        setFormData(prevData => {
+                            const updatedValues = [...(prevData[field.name] || [])];
+                            updatedValues[idx] = newValue;
+                            return { ...prevData, [field.name]: updatedValues };
+                        });
+                    };
+                    
+                    let inputElement;
+                    if (isMultiple) {
+                        inputElement = (formData[field.name] || []).map((value, idx) => (
+                            <div key={idx}>
+                                <input 
+                                    type="text"
+                                    value={value}
+                                    onChange={(e) => handleInputChange(e, idx)}
+                                    required={field.required}
+                                />
+                                <button type="button" onClick={() => handleRemove(idx)}>Remove</button>
+                            </div>
+                        ));
+                        inputElement.push(<button type="button" key="add" onClick={handleAdd}>Add</button>);
+                    } else {
+                        inputElement = (
+                            <input 
+                                type="text" 
+                                value={formData[field.name] || ''}
+                                onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                                required={field.required}
+                            />
+                        );
+                    }
+                    console.log(field.dataType)
                     switch (field.dataType) {
+
                         case "string":
                             return (
                                 <input 
@@ -240,7 +230,7 @@ function FHIREditor() {
                                         onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                                     />
                                 );
-                            case "name":
+                            case "HumanName":
                                 return (
                                     <div>
                                         <select 
@@ -273,66 +263,193 @@ function FHIREditor() {
                                         // Add more inputs for additional given names, prefixes, suffixes, etc.
                                     </div>
                                 );
-                            case "address":
-                                return (
-                                    <div>
-                                        <select 
-                                            id={`${field.name}.use`} 
-                                            onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
-                                        >
-                                            <option value="home">Home</option>
-                                            <option value="work">Work</option>
-                                            <option value="temp">Temporary</option>
-                                            // Add other options as needed
+                                case "Address":
+                                    return (
+                                        <div>
+                                            <select 
+                                                id={`${field.name}.use`} 
+                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
+                                            >
+                                                <option value="home">Home</option>
+                                                <option value="work">Work</option>
+                                                <option value="temp">Temporary</option>
+                                                {/* Add other options as needed */}
+                                            </select>
+                                            <input 
+                                                type="text" 
+                                                placeholder="Full address" 
+                                                id={`${field.name}.text`} 
+                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.text`]: e.target.value })}
+                                            />
+                                            <input 
+                                                type="text" 
+                                                placeholder="Line 1" 
+                                                id={`${field.name}.line[0]`} 
+                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.line[0]`]: e.target.value })}
+                                            />
+                                            <input 
+                                                type="text" 
+                                                placeholder="Line 2" 
+                                                id={`${field.name}.line[1]`} 
+                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.line[1]`]: e.target.value })}
+                                            />
+                                            <input 
+                                                type="text" 
+                                                placeholder="City" 
+                                                id={`${field.name}.city`} 
+                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.city`]: e.target.value })}
+                                            />
+                                            <input 
+                                                type="text" 
+                                                placeholder="State" 
+                                                id={`${field.name}.state`} 
+                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.state`]: e.target.value })}
+                                            />
+                                            <input 
+                                                type="text" 
+                                                placeholder="Postal Code" 
+                                                id={`${field.name}.postalCode`} 
+                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.postalCode`]: e.target.value })}
+                                            />
+                                            <input 
+                                                type="text" 
+                                                placeholder="Country" 
+                                                id={`${field.name}.country`} 
+                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.country`]: e.target.value })}
+                                            />
+                                        </div>
+                                    );
+                                
+                                    case "Identifier":
+                                        return (
+                                            <div>
+                                                <select 
+                                                    id={`${field.name}.use`} 
+                                                    onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
+                                                >
+                                                    <option value="usual">Usual</option>
+                                                    <option value="official">Official</option>
+                                                    <option value="temp">Temporary</option>
+                                                    <option value="secondary">Secondary</option>
+                                                    {/* Add other options as needed */}
+                                                </select>
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Type of Identifier (e.g., MRN)" 
+                                                    id={`${field.name}.type`} 
+                                                    onChange={(e) => setFormData({ ...formData, [`${field.name}.type`]: e.target.value })}
+                                                />
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="System (e.g., http://hospital.example.org)" 
+                                                    id={`${field.name}.system`} 
+                                                    onChange={(e) => setFormData({ ...formData, [`${field.name}.system`]: e.target.value })}
+                                                />
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="Value (e.g., 123456)" 
+                                                    id={`${field.name}.value`} 
+                                                    onChange={(e) => setFormData({ ...formData, [`${field.name}.value`]: e.target.value })}
+                                                />
+                                            </div>
+                                        );
+                                        case "Period":
+                                            return (
+                                                <div>
+                                                    <input 
+                                                        type="date" 
+                                                        placeholder="Start Date" 
+                                                        id={`${field.name}.start`} 
+                                                        title="The start of the period."
+                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.start`]: e.target.value })}
+                                                    />
+                                                    <input 
+                                                        type="date" 
+                                                        placeholder="End Date" 
+                                                        id={`${field.name}.end`} 
+                                                        title="The end of the period."
+                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.end`]: e.target.value })}
+                                                    />
+                                                </div>
+                                            );
+                                        case "ContactPoint":
+                                            return (
+                                                <div>
+                                                    <select 
+                                                        id={`${field.name}.system`} 
+                                                        title="The communication system (e.g., phone, email)."
+                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.system`]: e.target.value })}
+                                                    >
+                                                        <option value="phone">Phone</option>
+                                                        <option value="email">Email</option>
+                                                        <option value="fax">Fax</option>
+                                                        <option value="pager">Pager</option>
+                                                        <option value="url">URL</option>
+                                                        <option value="sms">SMS</option>
+                                                        <option value="other">Other</option>
+                                                    </select>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="Contact detail (e.g., +1-800-123-4567)" 
+                                                        id={`${field.name}.value`} 
+                                                        title="The actual contact detail (e.g., phone number or email address)."
+                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.value`]: e.target.value })}
+                                                    />
+                                                    <select 
+                                                        id={`${field.name}.use`} 
+                                                        title="The purpose of this contact point (e.g., home, work)."
+                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
+                                                    >
+                                                        <option value="home">Home</option>
+                                                        <option value="work">Work</option>
+                                                        <option value="temp">Temporary</option>
+                                                        <option value="old">Old/Incorrect</option>
+                                                        <option value="mobile">Mobile</option>
+                                                    </select>
+                                                    <input 
+                                                        type="number" 
+                                                        placeholder="Rank (e.g., 1)" 
+                                                        id={`${field.name}.rank`} 
+                                                        title="Specifies a preferred order in which to use this contact. Lower ranks are more preferred."
+                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.rank`]: e.target.value })}
+                                                    />
+                                                </div>
+                                            );
+                                                                
+                            case 'date':
+                            case 'dateTime':
+                                return <input type="date" className={styles.formInput} />;
+                            case 'string':
+                            case 'code':
+                            case 'id':
+                            case 'markdown':
+                                return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
+                            case 'boolean':
+                                return <input type="checkbox" id={field.name} name={field.name} className={styles.formInput} />;
+                            case 'integer':
+                            case 'positiveInt':
+                            case 'unsignedInt':
+                            case 'integer64':
+                            case 'decimal':
+                                return <input type="number" id={field.name} name={field.name} className={styles.formInput} />;
+                            case 'CodeableConcept':
+                            case 'Coding':
+                                if (field.binding && field.binding.valueSet) {
+                                    const codes = findCodesForValueSet(field.binding.valueSet);
+                                    console.log(codes)
+                                    return (
+                                        <select id={field.name} name={field.name} className={styles.formInput}>
+                                            {codes.map(code => <option key={code} value={code}>{code}</option>)}
                                         </select>
-                                        <input 
-                                            type="text" 
-                                            placeholder="Full address" 
-                                            id={`${field.name}.text`} 
-                                            onChange={(e) => setFormData({ ...formData, [`${field.name}.text`]: e.target.value })}
-                                        />
-                                        <input 
-                                            type="text" 
-                                            placeholder="Line 1" 
-                                            id={`${field.name}.line`} 
-                                            onChange={(e) => setFormData({ ...formData, [`${field.name}.line`]: e.target.value })}
-                                        />
-                                        // Add more inputs for additional address lines, city, state, postal code, country, etc.
-                                    </div>
-                                );
-                        
-        case 'date':
-        case 'dateTime':
-            return <input type="date" className={styles.formInput} />;
-        case 'string':
-        case 'code':
-        case 'id':
-        case 'markdown':
-            return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
-        case 'boolean':
-            return <input type="checkbox" id={field.name} name={field.name} className={styles.formInput} />;
-        case 'integer':
-        case 'positiveInt':
-        case 'unsignedInt':
-        case 'integer64':
-        case 'decimal':
-            return <input type="number" id={field.name} name={field.name} className={styles.formInput} />;
-        case 'CodeableConcept':
-        case 'Coding':
-            if (field.binding && field.binding.valueSet) {
-                const codes = findCodesForValueSet(field.binding.valueSet);
-                return (
-                    <select id={field.name} name={field.name} className={styles.formInput}>
-                        {codes.map(code => <option key={code} value={code}>{code}</option>)}
-                    </select>
-                );
-            }
-        default:
-                            return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
-                    }
-                })()}
-            </div>
-        ))}
+                                    );
+                                }
+                            default:
+                                                return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
+                                        }
+                                    })()}
+                                </div>
+                            ))}
+        
         <button type="button" onClick={handleCreateResource}>Create Resource</button>
 
     </form>
