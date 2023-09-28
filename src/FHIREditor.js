@@ -10,8 +10,9 @@ const allValueSets = [...valuesets.entry, ...v3Codesystems.entry, ...v2Tables.en
 
 // 2. Helper function to find codes for a given valueSet URL
 function findCodesForValueSet(valueSetURL) {
-    console.log("look up value")
+    console.log("look up valueset URL: " + valueSetURL)
     for (let entry of allValueSets) {
+        console.log(entry.resource.url)
         if (entry.resource && entry.resource.url === valueSetURL) {
             return entry.resource.concept.map(concept => concept.code);
         }
@@ -57,11 +58,14 @@ function parseStructureDefinitions(data, selectedResource) {
     structureDefinitions.forEach((structureDefinition) => {
         if (structureDefinition.snapshot && structureDefinition.snapshot.element) {
             structureDefinition.snapshot.element.forEach((element) => {
-                console.log(element)
+                
                 const fieldName = element.path.split('.').pop();
                 const label = camelCaseToLabel(fieldName)
                 const short = element.short
                 const isRequired = element.min > 0;
+                const binding = element.binding;
+                const valueSet = "http://hl7.org/fhir/ValueSet/languages";
+                console.log(binding);
                 const dataTypeCode = element.type && element.type.length > 0 ? element.type[0].code : undefined;
 
                 fields.push({
@@ -69,7 +73,8 @@ function parseStructureDefinitions(data, selectedResource) {
                     label: label,
                     dataType: dataTypeCode,
                     required: isRequired,
-                    description: short
+                    description: short,
+                    values: valueSet
                 });
             });
         }
@@ -437,8 +442,8 @@ function FHIREditor() {
                             case 'code':
                                 console.log(field)
                                 //console.log(field.binding.valueSet)
-                                if (field.binding && field.binding.valueSet) {
-                                    const codes = findCodesForValueSet(field.binding.valueSet);
+                                if (field.values) {
+                                    const codes = findCodesForValueSet(field.values);
                                     console.log(codes)
                                     return (
                                         <select id={field.name} name={field.name} className={styles.formInput}>
