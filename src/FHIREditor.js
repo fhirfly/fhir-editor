@@ -8,6 +8,20 @@ import styles from './FHIREditor.module.css';  // Import the CSS module
 // Combine the entries from all three files into a single array
 const allValueSets = [...valuesets.entry, ...v3Codesystems.entry, ...v2Tables.entry];
 
+function convertUrl(url) {
+    // Replace 'http:' with 'https:'
+    url = url.replace("http:", "https:");
+    
+    // Extract the resource type and name
+    const parts = url.split("/");
+    const resourceType = parts[parts.length - 2];
+    const resourceNameWithExtension = parts[parts.length - 1];
+    
+    // Combine the resource type and name with a dash and reconstruct the URL
+    const convertedUrl = url.split("/").slice(0, -2).join("/") + "/" + resourceType + "-" + resourceNameWithExtension;
+    
+    return convertedUrl;
+}
 
 async function findCodesForValueSet(valueSetURL) {
     console.log("look up valueset URL: " + valueSetURL);
@@ -17,22 +31,23 @@ async function findCodesForValueSet(valueSetURL) {
             return entry.resource.concept.map(concept => concept.code);
         }
     }
-
-
-
     // If no local value set is found, try fetching from the provided URL
-    const hl7_url = valueSetURL + '.json'
+    const hl7_url  = convertUrl(valueSetURL) + '.json';
+    console.log(hl7_url)
     try {
         let response = await fetch(hl7_url, { 
-            headers: {
-                'Content-Type': 'application/json'
-            }
+
         });
         if (response.ok) {
             console.log('Response from URL ' + response)
             let data = await response.json();
-            if (data.resource && data.resource.concept) {
-                return data.resource.concept.map(concept => concept.code);
+            console.log('data' + data)
+                   // Navigate through the nested structure to get the codes
+            if (data.compose && data.compose.include && data.compose.include.length > 0) {
+                const concepts = data.compose.include[0].concept;
+                if (concepts) {
+                    return concepts.map(concept => concept.code);
+                }
             }
         }
     } catch (error) {
@@ -86,10 +101,15 @@ function parseStructureDefinitions(data, selectedResource) {
                 const label = camelCaseToLabel(fieldName)
                 const short = element.short
                 const isRequired = element.min > 0;
-                const binding = element.binding;
-                const valueSet = "http://hl7.org/fhir/ValueSet/languages";
-                console.log(binding);
                 const dataTypeCode = element.type && element.type.length > 0 ? element.type[0].code : undefined;
+                var valueSet = "";
+                if (element.binding!=undefined){
+                    const binding = element.binding
+                    //console.log(binding);
+                    valueSet = binding.valueSet;
+                    console.log(valueSet)
+                }
+
 
                 fields.push({
                     name: fieldName,
@@ -124,14 +144,17 @@ function FHIREditor(props) {
 
     useEffect(() => {
         async function fetchData() {
+            // Check if props.field and props.field.values exist before making the call
             if (props.field && props.field.values) {
+                console.log(props.field.values)
                 const result = await findCodesForValueSet(props.field.values);
                 setCodes(result);
             }
         }
-
+    
+        // Fetch the data when the component mounts
         fetchData();
-    }, [props.field]);
+    }, [props.field ? props.field.values : undefined]);
 
 
 
@@ -475,16 +498,19 @@ function FHIREditor(props) {
                             return <input type="date" className={styles.formInput} />;
                         case 'string':
                         case 'code':
-                            console.log(field)
+                            console.log('field.values : ' + field.values)
+                            console.log(props)
                             //console.log(field.binding.valueSet)
-                            if (field.values) {
-                                const codes =  findCodesForValueSet(field.values);
-                                console.log(codes)
-                                return (
-                                    <select id={field.name} name={field.name} className={styles.formInput}>
+                            if (field.values != '') {
+                                console.log (field.values)
+                                // Render the component
+                                if (props.field && field.values !== '') {return (
+                                    <select id={props.field.name} name={props.field.name} className={styles.formInput}>
                                         {codes.map(code => <option key={code} value={code}>{code}</option>)}
                                     </select>
-                                );}
+                                );
+                                }
+                                }
                         case 'id':
                         case 'markdown':
                             return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
@@ -496,26 +522,8 @@ function FHIREditor(props) {
                         case 'integer64':
                         case 'decimal':
                             return <input type="number" id={field.name} name={field.name} className={styles.formInput} />;
-                        case 'CodeableConcept':
-                            if (field.binding && field.binding.valueSet) {
-                                const codes = findCodesForValueSet(field.binding.valueSet);
-                                console.log(codes)
-                                return (
-                                    <select id={field.name} name={field.name} className={styles.formInput}>
-                                        {codes.map(code => <option key={code} value={code}>{code}</option>)}
-                                    </select>
-                                );
-                            }
-                        case 'Coding':
-                            if (field.binding && field.binding.valueSet) {
-                                const codes = findCodesForValueSet(field.binding.valueSet);
-                                console.log(codes)
-                                return (
-                                    <select id={field.name} name={field.name} className={styles.formInput}>
-                                        {codes.map(code => <option key={code} value={code}>{code}</option>)}
-                                    </select>
-                                );
-                            }
+                        case 'CodeableConcept':                            
+                        case 'Coding':                          
                         default:
                             return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
                                     }
