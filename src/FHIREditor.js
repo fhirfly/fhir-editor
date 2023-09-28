@@ -353,6 +353,25 @@ function FHIREditor() {
                                                 />
                                             </div>
                                         );
+                                        case "Period":
+                                            return (
+                                                <div>
+                                                    <input 
+                                                        type="date" 
+                                                        placeholder="Start Date" 
+                                                        id={`${field.name}.start`} 
+                                                        title="The start of the period."
+                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.start`]: e.target.value })}
+                                                    />
+                                                    <input 
+                                                        type="date" 
+                                                        placeholder="End Date" 
+                                                        id={`${field.name}.end`} 
+                                                        title="The end of the period."
+                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.end`]: e.target.value })}
+                                                    />
+                                                </div>
+                                            );
                                         case "ContactPoint":
                                             return (
                                                 <div>
@@ -417,6 +436,7 @@ function FHIREditor() {
                             case 'Coding':
                                 if (field.binding && field.binding.valueSet) {
                                     const codes = findCodesForValueSet(field.binding.valueSet);
+                                    console.log(codes)
                                     return (
                                         <select id={field.name} name={field.name} className={styles.formInput}>
                                             {codes.map(code => <option key={code} value={code}>{code}</option>)}
