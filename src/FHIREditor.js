@@ -157,16 +157,21 @@ function FHIREditor(props) {
     }, [props.field ? props.field.values : undefined]);
 
 
-
     function handleCreateResource() {
         // Start with the basic resourceType
         const resource = {
             resourceType: selectedResource
         };
     
+        console.log('formData:', formData); // Log formData to check its current state
+    
         // Loop through the fields to structure the FHIR resource
         fields.forEach(field => {
+            console.log('Checking field:', field.name); // Log current field name
+    
             if (formData[field.name]) {  // If there's data for this field
+                console.log('Data found for field:', field.name, formData[field.name]); // Log the data for the field
+    
                 if (field.max === 'unbounded' || field.max === '*' || (typeof field.max === 'number' && field.max > 1)) {
                     // Handle fields that allow multiple values
                     resource[field.name] = formData[field.name];
@@ -174,12 +179,13 @@ function FHIREditor(props) {
                     // Handle single value fields
                     resource[field.name] = formData[field.name][0] || formData[field.name];
                 }
+            } else {
+                console.log('No data found for field:', field.name); // Log if no data is found for the field
             }
         });
     
         // TODO: Handle nested fields and other complex structures if needed
     
-        // TODO: Add logic to send the resource to a server or process it further
         console.log(resource);  // For now, we'll just log it to the console.
     }
     
@@ -493,10 +499,8 @@ function FHIREditor(props) {
                                     />
                                 </div>
                             );
-                        case 'date':
                         case 'dateTime':
                             return <input type="date" className={styles.formInput} />;
-                        case 'string':
                         case 'code':
                             console.log('field.values : ' + field.values)
                             console.log(props)
@@ -512,11 +516,16 @@ function FHIREditor(props) {
                                 }
                                 }
                         case 'id':
+                            <input 
+                            type="text" 
+                            id={field.name} 
+                            name={field.name} 
+                            required={field.required}
+                            className={styles.formInput}
+                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                        />
                         case 'markdown':
                             return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
-                        case 'boolean':
-                            return <input type="checkbox" id={field.name} name={field.name} className={styles.formInput} />;
-                        case 'integer':
                         case 'positiveInt':
                         case 'unsignedInt':
                         case 'integer64':
@@ -525,7 +534,14 @@ function FHIREditor(props) {
                         case 'CodeableConcept':                            
                         case 'Coding':                          
                         default:
-                            return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
+                            return                             <input 
+                            type="text" 
+                            id={field.name} 
+                            name={field.name} 
+                            required={field.required}
+                            className={styles.formInput}
+                            onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                        />;
                                     }
                         })()}
                     </div>
