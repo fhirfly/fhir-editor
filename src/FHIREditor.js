@@ -8,17 +8,40 @@ import styles from './FHIREditor.module.css';  // Import the CSS module
 // Combine the entries from all three files into a single array
 const allValueSets = [...valuesets.entry, ...v3Codesystems.entry, ...v2Tables.entry];
 
-// 2. Helper function to find codes for a given valueSet URL
-function findCodesForValueSet(valueSetURL) {
-    console.log("look up valueset URL: " + valueSetURL)
+
+async function findCodesForValueSet(valueSetURL) {
+    console.log("look up valueset URL: " + valueSetURL);
     for (let entry of allValueSets) {
-        console.log(entry.resource.url)
+        //console.log(entry.resource.url);
         if (entry.resource && entry.resource.url === valueSetURL) {
             return entry.resource.concept.map(concept => concept.code);
         }
     }
-    return [];  // Return an empty array if no matching value set is found
+
+
+
+    // If no local value set is found, try fetching from the provided URL
+    const hl7_url = valueSetURL + '.json'
+    try {
+        let response = await fetch(hl7_url, { 
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        if (response.ok) {
+            console.log('Response from URL ' + response)
+            let data = await response.json();
+            if (data.resource && data.resource.concept) {
+                return data.resource.concept.map(concept => concept.code);
+            }
+        }
+    } catch (error) {
+        console.error("Error fetching value set from URL:", error);
+    }
+
+    return [];  // Return an empty array if no matching value set is found or fetch fails
 }
+
 function getUniqueResourceNames(data) {
     const resourceNames = new Set();
     if (data && data.entry) {
@@ -85,7 +108,7 @@ function parseStructureDefinitions(data, selectedResource) {
 
 
 
-function FHIREditor() {
+function FHIREditor(props) {
     const [formData, setFormData] = useState({});
     const [fields, setFields] = useState([]);
     const [selectedResource, setSelectedResource] = useState('Patient');
@@ -96,6 +119,21 @@ function FHIREditor() {
         const parsedFields = parseStructureDefinitions(structureDefinitionData, selectedResource);
         setFields(parsedFields);
     }, [selectedResource]);
+
+    const [codes, setCodes] = useState([]);
+
+    useEffect(() => {
+        async function fetchData() {
+            if (props.field && props.field.values) {
+                const result = await findCodesForValueSet(props.field.values);
+                setCodes(result);
+            }
+        }
+
+        fetchData();
+    }, [props.field]);
+
+
 
     function handleCreateResource() {
         // Start with the basic resourceType
@@ -201,7 +239,6 @@ function FHIREditor() {
                     }
                     console.log(field.dataType)
                     switch (field.dataType) {
-
                         case "string":
                             return (
                                 <input 
@@ -238,256 +275,253 @@ function FHIREditor() {
                                     onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
                                 />
                             );
-                            case "date":
-                                return (
+                        case "date":
+                            return (
+                                <input 
+                                    type="date" 
+                                    id={field.name} 
+                                    name={field.name} 
+                                    required={field.required}
+                                    className={styles.formInput}
+                                    onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                                />
+                            );
+                        case "HumanName":
+                            return (
+                                <div>
+                                    <select 
+                                        id={`${field.name}.use`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
+                                    >
+                                        <option value="official">Official</option>
+                                        <option value="usual">Usual</option>
+                                        <option value="old">Old</option>
+                                        // Add other options as needed
+                                    </select>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Full name" 
+                                        id={`${field.name}.text`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.text`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Family name" 
+                                        id={`${field.name}.family`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.family`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Given name" 
+                                        id={`${field.name}.given`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.given`]: e.target.value })}
+                                    />
+                                    // Add more inputs for additional given names, prefixes, suffixes, etc.
+                                </div>
+                            );
+                        case "Address":
+                            return (
+                                <div>
+                                    <select 
+                                        id={`${field.name}.use`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
+                                    >
+                                        <option value="home">Home</option>
+                                        <option value="work">Work</option>
+                                        <option value="temp">Temporary</option>
+                                        {/* Add other options as needed */}
+                                    </select>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Full address" 
+                                        id={`${field.name}.text`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.text`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Line 1" 
+                                        id={`${field.name}.line[0]`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.line[0]`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Line 2" 
+                                        id={`${field.name}.line[1]`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.line[1]`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="City" 
+                                        id={`${field.name}.city`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.city`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="State" 
+                                        id={`${field.name}.state`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.state`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Postal Code" 
+                                        id={`${field.name}.postalCode`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.postalCode`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Country" 
+                                        id={`${field.name}.country`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.country`]: e.target.value })}
+                                    />
+                                </div>
+                            );                        
+                        case "Identifier":
+                            return (
+                                <div>
+                                    <select 
+                                        id={`${field.name}.use`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
+                                    >
+                                        <option value="usual">Usual</option>
+                                        <option value="official">Official</option>
+                                        <option value="temp">Temporary</option>
+                                        <option value="secondary">Secondary</option>
+                                        {/* Add other options as needed */}
+                                    </select>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Type of Identifier (e.g., MRN)" 
+                                        id={`${field.name}.type`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.type`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="System (e.g., http://hospital.example.org)" 
+                                        id={`${field.name}.system`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.system`]: e.target.value })}
+                                    />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Value (e.g., 123456)" 
+                                        id={`${field.name}.value`} 
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.value`]: e.target.value })}
+                                    />
+                                </div>
+                            );
+                        case "Period":
+                            return (
+                                <div>
                                     <input 
                                         type="date" 
-                                        id={field.name} 
-                                        name={field.name} 
-                                        required={field.required}
-                                        className={styles.formInput}
-                                        onChange={(e) => setFormData({ ...formData, [field.name]: e.target.value })}
+                                        placeholder="Start Date" 
+                                        id={`${field.name}.start`} 
+                                        title="The start of the period."
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.start`]: e.target.value })}
                                     />
-                                );
-                            case "HumanName":
-                                return (
-                                    <div>
-                                        <select 
-                                            id={`${field.name}.use`} 
-                                            onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
-                                        >
-                                            <option value="official">Official</option>
-                                            <option value="usual">Usual</option>
-                                            <option value="old">Old</option>
-                                            // Add other options as needed
-                                        </select>
-                                        <input 
-                                            type="text" 
-                                            placeholder="Full name" 
-                                            id={`${field.name}.text`} 
-                                            onChange={(e) => setFormData({ ...formData, [`${field.name}.text`]: e.target.value })}
-                                        />
-                                        <input 
-                                            type="text" 
-                                            placeholder="Family name" 
-                                            id={`${field.name}.family`} 
-                                            onChange={(e) => setFormData({ ...formData, [`${field.name}.family`]: e.target.value })}
-                                        />
-                                        <input 
-                                            type="text" 
-                                            placeholder="Given name" 
-                                            id={`${field.name}.given`} 
-                                            onChange={(e) => setFormData({ ...formData, [`${field.name}.given`]: e.target.value })}
-                                        />
-                                        // Add more inputs for additional given names, prefixes, suffixes, etc.
-                                    </div>
-                                );
-                                case "Address":
-                                    return (
-                                        <div>
-                                            <select 
-                                                id={`${field.name}.use`} 
-                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
-                                            >
-                                                <option value="home">Home</option>
-                                                <option value="work">Work</option>
-                                                <option value="temp">Temporary</option>
-                                                {/* Add other options as needed */}
-                                            </select>
-                                            <input 
-                                                type="text" 
-                                                placeholder="Full address" 
-                                                id={`${field.name}.text`} 
-                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.text`]: e.target.value })}
-                                            />
-                                            <input 
-                                                type="text" 
-                                                placeholder="Line 1" 
-                                                id={`${field.name}.line[0]`} 
-                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.line[0]`]: e.target.value })}
-                                            />
-                                            <input 
-                                                type="text" 
-                                                placeholder="Line 2" 
-                                                id={`${field.name}.line[1]`} 
-                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.line[1]`]: e.target.value })}
-                                            />
-                                            <input 
-                                                type="text" 
-                                                placeholder="City" 
-                                                id={`${field.name}.city`} 
-                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.city`]: e.target.value })}
-                                            />
-                                            <input 
-                                                type="text" 
-                                                placeholder="State" 
-                                                id={`${field.name}.state`} 
-                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.state`]: e.target.value })}
-                                            />
-                                            <input 
-                                                type="text" 
-                                                placeholder="Postal Code" 
-                                                id={`${field.name}.postalCode`} 
-                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.postalCode`]: e.target.value })}
-                                            />
-                                            <input 
-                                                type="text" 
-                                                placeholder="Country" 
-                                                id={`${field.name}.country`} 
-                                                onChange={(e) => setFormData({ ...formData, [`${field.name}.country`]: e.target.value })}
-                                            />
-                                        </div>
-                                    );
-                                
-                                    case "Identifier":
-                                        return (
-                                            <div>
-                                                <select 
-                                                    id={`${field.name}.use`} 
-                                                    onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
-                                                >
-                                                    <option value="usual">Usual</option>
-                                                    <option value="official">Official</option>
-                                                    <option value="temp">Temporary</option>
-                                                    <option value="secondary">Secondary</option>
-                                                    {/* Add other options as needed */}
-                                                </select>
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Type of Identifier (e.g., MRN)" 
-                                                    id={`${field.name}.type`} 
-                                                    onChange={(e) => setFormData({ ...formData, [`${field.name}.type`]: e.target.value })}
-                                                />
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="System (e.g., http://hospital.example.org)" 
-                                                    id={`${field.name}.system`} 
-                                                    onChange={(e) => setFormData({ ...formData, [`${field.name}.system`]: e.target.value })}
-                                                />
-                                                <input 
-                                                    type="text" 
-                                                    placeholder="Value (e.g., 123456)" 
-                                                    id={`${field.name}.value`} 
-                                                    onChange={(e) => setFormData({ ...formData, [`${field.name}.value`]: e.target.value })}
-                                                />
-                                            </div>
-                                        );
-                                        case "Period":
-                                            return (
-                                                <div>
-                                                    <input 
-                                                        type="date" 
-                                                        placeholder="Start Date" 
-                                                        id={`${field.name}.start`} 
-                                                        title="The start of the period."
-                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.start`]: e.target.value })}
-                                                    />
-                                                    <input 
-                                                        type="date" 
-                                                        placeholder="End Date" 
-                                                        id={`${field.name}.end`} 
-                                                        title="The end of the period."
-                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.end`]: e.target.value })}
-                                                    />
-                                                </div>
-                                            );
-                                        case "ContactPoint":
-                                            return (
-                                                <div>
-                                                    <select 
-                                                        id={`${field.name}.system`} 
-                                                        title="The communication system (e.g., phone, email)."
-                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.system`]: e.target.value })}
-                                                    >
-                                                        <option value="phone">Phone</option>
-                                                        <option value="email">Email</option>
-                                                        <option value="fax">Fax</option>
-                                                        <option value="pager">Pager</option>
-                                                        <option value="url">URL</option>
-                                                        <option value="sms">SMS</option>
-                                                        <option value="other">Other</option>
-                                                    </select>
-                                                    <input 
-                                                        type="text" 
-                                                        placeholder="Contact detail (e.g., +1-800-123-4567)" 
-                                                        id={`${field.name}.value`} 
-                                                        title="The actual contact detail (e.g., phone number or email address)."
-                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.value`]: e.target.value })}
-                                                    />
-                                                    <select 
-                                                        id={`${field.name}.use`} 
-                                                        title="The purpose of this contact point (e.g., home, work)."
-                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
-                                                    >
-                                                        <option value="home">Home</option>
-                                                        <option value="work">Work</option>
-                                                        <option value="temp">Temporary</option>
-                                                        <option value="old">Old/Incorrect</option>
-                                                        <option value="mobile">Mobile</option>
-                                                    </select>
-                                                    <input 
-                                                        type="number" 
-                                                        placeholder="Rank (e.g., 1)" 
-                                                        id={`${field.name}.rank`} 
-                                                        title="Specifies a preferred order in which to use this contact. Lower ranks are more preferred."
-                                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.rank`]: e.target.value })}
-                                                    />
-                                                </div>
-                                            );
-                                                                
-                            case 'date':
-                            case 'dateTime':
-                                return <input type="date" className={styles.formInput} />;
-                            case 'string':
-                            case 'code':
-                                console.log(field)
-                                //console.log(field.binding.valueSet)
-                                if (field.values) {
-                                    const codes = findCodesForValueSet(field.values);
-                                    console.log(codes)
-                                    return (
-                                        <select id={field.name} name={field.name} className={styles.formInput}>
-                                            {codes.map(code => <option key={code} value={code}>{code}</option>)}
-                                        </select>
-                                    );
-                                }
-                            case 'id':
-                            case 'markdown':
-                                return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
-                            case 'boolean':
-                                return <input type="checkbox" id={field.name} name={field.name} className={styles.formInput} />;
-                            case 'integer':
-                            case 'positiveInt':
-                            case 'unsignedInt':
-                            case 'integer64':
-                            case 'decimal':
-                                return <input type="number" id={field.name} name={field.name} className={styles.formInput} />;
-                            case 'CodeableConcept':
-                                if (field.binding && field.binding.valueSet) {
-                                    const codes = findCodesForValueSet(field.binding.valueSet);
-                                    console.log(codes)
-                                    return (
-                                        <select id={field.name} name={field.name} className={styles.formInput}>
-                                            {codes.map(code => <option key={code} value={code}>{code}</option>)}
-                                        </select>
-                                    );
-                                }
-                            case 'Coding':
-                                if (field.binding && field.binding.valueSet) {
-                                    const codes = findCodesForValueSet(field.binding.valueSet);
-                                    console.log(codes)
-                                    return (
-                                        <select id={field.name} name={field.name} className={styles.formInput}>
-                                            {codes.map(code => <option key={code} value={code}>{code}</option>)}
-                                        </select>
-                                    );
-                                }
-                            default:
-                                                return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
-                                        }
-                                    })()}
+                                    <input 
+                                        type="date" 
+                                        placeholder="End Date" 
+                                        id={`${field.name}.end`} 
+                                        title="The end of the period."
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.end`]: e.target.value })}
+                                    />
                                 </div>
-                            ))}
+                            );
+                        case "ContactPoint":
+                            return (
+                                <div>
+                                    <select 
+                                        id={`${field.name}.system`} 
+                                        title="The communication system (e.g., phone, email)."
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.system`]: e.target.value })}
+                                    >
+                                        <option value="phone">Phone</option>
+                                        <option value="email">Email</option>
+                                        <option value="fax">Fax</option>
+                                        <option value="pager">Pager</option>
+                                        <option value="url">URL</option>
+                                        <option value="sms">SMS</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Contact detail (e.g., +1-800-123-4567)" 
+                                        id={`${field.name}.value`} 
+                                        title="The actual contact detail (e.g., phone number or email address)."
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.value`]: e.target.value })}
+                                    />
+                                    <select 
+                                        id={`${field.name}.use`} 
+                                        title="The purpose of this contact point (e.g., home, work)."
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
+                                    >
+                                        <option value="home">Home</option>
+                                        <option value="work">Work</option>
+                                        <option value="temp">Temporary</option>
+                                        <option value="old">Old/Incorrect</option>
+                                        <option value="mobile">Mobile</option>
+                                    </select>
+                                    <input 
+                                        type="number" 
+                                        placeholder="Rank (e.g., 1)" 
+                                        id={`${field.name}.rank`} 
+                                        title="Specifies a preferred order in which to use this contact. Lower ranks are more preferred."
+                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.rank`]: e.target.value })}
+                                    />
+                                </div>
+                            );
+                        case 'date':
+                        case 'dateTime':
+                            return <input type="date" className={styles.formInput} />;
+                        case 'string':
+                        case 'code':
+                            console.log(field)
+                            //console.log(field.binding.valueSet)
+                            if (field.values) {
+                                const codes =  findCodesForValueSet(field.values);
+                                console.log(codes)
+                                return (
+                                    <select id={field.name} name={field.name} className={styles.formInput}>
+                                        {codes.map(code => <option key={code} value={code}>{code}</option>)}
+                                    </select>
+                                );}
+                        case 'id':
+                        case 'markdown':
+                            return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
+                        case 'boolean':
+                            return <input type="checkbox" id={field.name} name={field.name} className={styles.formInput} />;
+                        case 'integer':
+                        case 'positiveInt':
+                        case 'unsignedInt':
+                        case 'integer64':
+                        case 'decimal':
+                            return <input type="number" id={field.name} name={field.name} className={styles.formInput} />;
+                        case 'CodeableConcept':
+                            if (field.binding && field.binding.valueSet) {
+                                const codes = findCodesForValueSet(field.binding.valueSet);
+                                console.log(codes)
+                                return (
+                                    <select id={field.name} name={field.name} className={styles.formInput}>
+                                        {codes.map(code => <option key={code} value={code}>{code}</option>)}
+                                    </select>
+                                );
+                            }
+                        case 'Coding':
+                            if (field.binding && field.binding.valueSet) {
+                                const codes = findCodesForValueSet(field.binding.valueSet);
+                                console.log(codes)
+                                return (
+                                    <select id={field.name} name={field.name} className={styles.formInput}>
+                                        {codes.map(code => <option key={code} value={code}>{code}</option>)}
+                                    </select>
+                                );
+                            }
+                        default:
+                            return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
+                                    }
+                        })()}
+                    </div>
+                    ))}
         
         <button type="button" onClick={handleCreateResource}>Create Resource</button>
 
