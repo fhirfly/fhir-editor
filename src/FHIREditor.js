@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import structureDefinitionData from './r4b/profiles-resources';
+import v2Tables from './r4b/v2-tables.json';
+import valuesets from './r4b/v3-codesystems.json';
+import v3Codesystems from './r4b/v3-codesystems.json';
 import styles from './FHIREditor.module.css';  // Import the CSS module
 
+// Combine the entries from all three files into a single array
+const allValueSets = [...valuesets.entry, ...v3Codesystems.entry, ...v2Tables.entry];
+
+// 2. Helper function to find codes for a given valueSet URL
+function findCodesForValueSet(valueSetURL) {
+    for (let entry of allValueSets) {
+        if (entry.resource && entry.resource.url === valueSetURL) {
+            return entry.resource.concept.map(concept => concept.code);
+        }
+    }
+    return [];  // Return an empty array if no matching value set is found
+}
 function getUniqueResourceNames(data) {
     const resourceNames = new Set();
     if (data && data.entry) {
@@ -304,13 +319,15 @@ function FHIREditor() {
             return <input type="number" id={field.name} name={field.name} className={styles.formInput} />;
         case 'CodeableConcept':
         case 'Coding':
-            return (
-                <select id={field.name} name={field.name} className={styles.formInput}>
-                    <option value="option1">Option 1</option>
-                    <option value="option2">Option 2</option>
-                </select>
-            );
-default:
+            if (field.binding && field.binding.valueSet) {
+                const codes = findCodesForValueSet(field.binding.valueSet);
+                return (
+                    <select id={field.name} name={field.name} className={styles.formInput}>
+                        {codes.map(code => <option key={code} value={code}>{code}</option>)}
+                    </select>
+                );
+            }
+        default:
                             return <input type="text" id={field.name} name={field.name} className={styles.formInput} />;
                     }
                 })()}
