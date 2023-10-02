@@ -1,6 +1,7 @@
 import React from 'react';
 import FHIREditor from './FHIREditor';  // Import the FHIREditor component
 
+// Render the FHIREditor component
 function App() {
     return (
         <div className="App">
@@ -8,7 +9,7 @@ function App() {
                 <h1>FHIR Editor Application</h1>
             </header>
             <main>
-                <FHIREditor />  // Render the FHIREditor component
+                <FHIREditor />
             </main>
         </div>
     );
