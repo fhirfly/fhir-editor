@@ -131,12 +131,7 @@ function parseStructureDefinitions(data, selectedResource) {
 
 function FHIREditor(props) {
     const [formData, setFormData] = useState({
-        identifiers: [{
-            use: "usual",
-            type: "",
-            system: "",
-            value: "",
-          },],
+        identifiers: [{},],
     });
     const [fields, setFields] = useState([]);
     const [selectedResource, setSelectedResource] = useState('Patient');
@@ -201,6 +196,19 @@ function FHIREditor(props) {
         });
     
         // TODO: Handle nested fields and other complex structures if needed
+        // Convert the resource to JSON
+        const jsonContent = JSON.stringify(resource, null, 2);
+
+        // Create a Blob containing the JSON data
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+
+        // Create a link element and trigger a download
+        const downloadLink = document.createElement('a');
+        downloadLink.href = URL.createObjectURL(blob);
+        downloadLink.download = `${selectedResource}_resource.json`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
     
         console.log(resource);  // For now, we'll just log it to the console.
     }
