@@ -194,10 +194,10 @@ function FHIREditor(props) {
                 console.log('No data found for field:', field.name); // Log if no data is found for the field
             }
         });
-    
-        // TODO: Handle nested fields and other complex structures if needed
         // Convert the resource to JSON
-        const jsonContent = JSON.stringify(resource, null, 2);
+        console.log("resource", resource)
+        const jsonContent = JSON.stringify(formData);
+        console.log("jsonContent", jsonContent);
 
         // Create a Blob containing the JSON data
         const blob = new Blob([jsonContent], { type: 'application/json' });
