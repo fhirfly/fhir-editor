@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import structureDefinitionData from './r4b/profiles-resources';
 import v2Tables from './r4b/v2-tables.json';
-import valuesets from './r4b/v3-codesystems.json';
+import valuesets from './r4b/valuesets.json';
 import v3Codesystems from './r4b/v3-codesystems.json';
 import styles from './FHIREditor.module.css';  // Import the CSS module
 
@@ -16,18 +16,19 @@ function convertUrl(url) {
     const parts = url.split("/");
     const resourceType = parts[parts.length - 2];
     const resourceNameWithExtension = parts[parts.length - 1];
-    
+
     // Combine the resource type and name with a dash and reconstruct the URL
     const convertedUrl = url.split("/").slice(0, -2).join("/") + "/" + resourceType + "-" + resourceNameWithExtension;
-    
+
     return convertedUrl;
 }
 
 async function findCodesForValueSet(valueSetURL) {
-    console.log("look up valueset URL: " + valueSetURL);
+    console.log("look up value set URL: " + valueSetURL);
     for (let entry of allValueSets) {
         //console.log(entry.resource.url);
         if (entry.resource && entry.resource.url === valueSetURL) {
+            console.log(" look up value set URL Success", valueSetURL)
             return entry.resource.concept.map(concept => concept.code);
         }
     }
@@ -35,7 +36,7 @@ async function findCodesForValueSet(valueSetURL) {
     const hl7_url  = convertUrl(valueSetURL) + '.json';
     console.log(hl7_url)
     try {
-        let response = await fetch(hl7_url, { 
+        let response = await fetch(hl7_url, {
 
         });
         if (response.ok) {
@@ -96,14 +97,14 @@ function parseStructureDefinitions(data, selectedResource) {
     structureDefinitions.forEach((structureDefinition) => {
         if (structureDefinition.snapshot && structureDefinition.snapshot.element) {
             structureDefinition.snapshot.element.forEach((element) => {
-                
+
                 const fieldName = element.path.split('.').pop();
                 const label = camelCaseToLabel(fieldName)
                 const short = element.short
                 const isRequired = element.min > 0;
                 const dataTypeCode = element.type && element.type.length > 0 ? element.type[0].code : undefined;
                 var valueSet = "";
-                if (element.binding!=undefined){
+                if (element.binding !== undefined){
                     const binding = element.binding
                     //console.log(binding);
                     valueSet = binding.valueSet;
@@ -129,9 +130,21 @@ function parseStructureDefinitions(data, selectedResource) {
 
 
 function FHIREditor(props) {
-    const [formData, setFormData] = useState({});
+    const [formData, setFormData] = useState({
+        identifiers: [{},],
+    });
     const [fields, setFields] = useState([]);
     const [selectedResource, setSelectedResource] = useState('Patient');
+
+    const handleAddIdentifier = () => {
+        const newIdentifiers = [...formData.identifiers, {}];
+        setFormData({ ...formData, identifiers: newIdentifiers });
+      };
+      const handleRemoveIdentifier = (index) => {
+        const newIdentifiers = [...formData.identifiers];
+        newIdentifiers.splice(index, 1);
+        setFormData({ ...formData, identifiers: newIdentifiers });
+      };
 
     const uniqueResources = getUniqueResourceNames(structureDefinitionData);
 
@@ -151,7 +164,6 @@ function FHIREditor(props) {
                 setCodes(result);
             }
         }
-    
         // Fetch the data when the component mounts
         fetchData();
     }, [props.field ? props.field.values : undefined]);
@@ -162,9 +174,8 @@ function FHIREditor(props) {
         const resource = {
             resourceType: selectedResource
         };
-    
         console.log('formData:', formData); // Log formData to check its current state
-    
+
         // Loop through the fields to structure the FHIR resource
         fields.forEach(field => {
             console.log('Checking field:', field.name); // Log current field name
@@ -183,12 +194,25 @@ function FHIREditor(props) {
                 console.log('No data found for field:', field.name); // Log if no data is found for the field
             }
         });
-    
-        // TODO: Handle nested fields and other complex structures if needed
+        // Convert the resource to JSON
+        console.log("resource", resource)
+        const jsonContent = JSON.stringify(formData);
+        console.log("jsonContent", jsonContent);
+
+        // Create a Blob containing the JSON data
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+
+        // Create a link element and trigger a download
+        const downloadLink = document.createElement('a');
+        downloadLink.href = URL.createObjectURL(blob);
+        downloadLink.download = `${selectedResource}_resource.json`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
     
         console.log(resource);  // For now, we'll just log it to the console.
     }
-    
+
 
     return (
         <div className={styles.editorContainer}>
@@ -207,7 +231,6 @@ function FHIREditor(props) {
 
         <form>
         {fields.map((field, index) => (
-                          
             <div key={index} className={styles.formField}>
                 <label 
                     htmlFor={field.name} 
@@ -218,14 +241,14 @@ function FHIREditor(props) {
                 {(() => {
 
                     const isMultiple = field.max === 'unbounded' || field.max === '*' || (typeof field.max === 'number' && field.max > 1);
-    
+
                     const handleAdd = () => {
                         setFormData(prevData => ({
                             ...prevData,
                             [field.name]: [...(prevData[field.name] || []), '']
                         }));
                     };
-                    
+
                     const handleRemove = (idx) => {
                         setFormData(prevData => ({
                             ...prevData,
@@ -241,7 +264,7 @@ function FHIREditor(props) {
                             return { ...prevData, [field.name]: updatedValues };
                         });
                     };
-                    
+
                     let inputElement;
                     if (isMultiple) {
                         inputElement = (formData[field.name] || []).map((value, idx) => (
@@ -325,7 +348,7 @@ function FHIREditor(props) {
                                         <option value="official">Official</option>
                                         <option value="usual">Usual</option>
                                         <option value="old">Old</option>
-                                        // Add other options as needed
+                                         {/* Add other options as needed */}
                                     </select>
                                     <input 
                                         type="text" 
@@ -345,7 +368,7 @@ function FHIREditor(props) {
                                         id={`${field.name}.given`} 
                                         onChange={(e) => setFormData({ ...formData, [`${field.name}.given`]: e.target.value })}
                                     />
-                                    // Add more inputs for additional given names, prefixes, suffixes, etc.
+                                    {/* // Add more inputs for additional given names, prefixes, suffixes, etc. */}
                                 </div>
                             );
                         case "Address":
@@ -403,13 +426,56 @@ function FHIREditor(props) {
                                         onChange={(e) => setFormData({ ...formData, [`${field.name}.country`]: e.target.value })}
                                     />
                                 </div>
-                            );                        
+                            );
+                        // case "Identifier":
+                        //     return (
+                        //         <div>
+                        //             <select 
+                        //                 id={`${field.name}.use`} 
+                        //                 onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
+                        //             >
+                        //                 <option value="usual">Usual</option>
+                        //                 <option value="official">Official</option>
+                        //                 <option value="temp">Temporary</option>
+                        //                 <option value="secondary">Secondary</option>
+                        //                 {/* Add other options as needed */}
+                        //             </select>
+                        //             <input 
+                        //                 type="text" 
+                        //                 placeholder="Type of Identifier (e.g., MRN)" 
+                        //                 id={`${field.name}.type`} 
+                        //                 onChange={(e) => setFormData({ ...formData, [`${field.name}.type`]: e.target.value })}
+                        //             />
+                        //             <input 
+                        //                 type="text" 
+                        //                 placeholder="System (e.g., http://hospital.example.org)" 
+                        //                 id={`${field.name}.system`} 
+                        //                 onChange={(e) => setFormData({ ...formData, [`${field.name}.system`]: e.target.value })}
+                        //             />
+                        //             <input 
+                        //                 type="text" 
+                        //                 placeholder="Value (e.g., 123456)" 
+                        //                 id={`${field.name}.value`} 
+                        //                 onChange={(e) => setFormData({ ...formData, [`${field.name}.value`]: e.target.value })}
+                        //             />
+                        //         </div>
+                        //     );
                         case "Identifier":
                             return (
                                 <div>
-                                    <select 
-                                        id={`${field.name}.use`} 
-                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.use`]: e.target.value })}
+                                {formData.identifiers.map((identifier, index) => (
+                                    <div key={index}>
+                                    <select
+                                        onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            identifiers: [
+                                            ...formData.identifiers.slice(0, index),
+                                            { ...identifier, use: e.target.value },
+                                            ...formData.identifiers.slice(index + 1),
+                                            ],
+                                        })
+                                        }
                                     >
                                         <option value="usual">Usual</option>
                                         <option value="official">Official</option>
@@ -417,26 +483,55 @@ function FHIREditor(props) {
                                         <option value="secondary">Secondary</option>
                                         {/* Add other options as needed */}
                                     </select>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Type of Identifier (e.g., MRN)" 
-                                        id={`${field.name}.type`} 
-                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.type`]: e.target.value })}
+                                    <input
+                                        type="text"
+                                        placeholder="Type of Identifier (e.g., MRN)"
+                                        onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            identifiers: [
+                                            ...formData.identifiers.slice(0, index),
+                                            { ...identifier, type: e.target.value },
+                                            ...formData.identifiers.slice(index + 1),
+                                            ],
+                                        })
+                                        }
                                     />
-                                    <input 
-                                        type="text" 
-                                        placeholder="System (e.g., http://hospital.example.org)" 
-                                        id={`${field.name}.system`} 
-                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.system`]: e.target.value })}
+                                    <input
+                                        type="text"
+                                        placeholder="System (e.g., http://hospital.example.org)"
+                                        onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            identifiers: [
+                                            ...formData.identifiers.slice(0, index),
+                                            { ...identifier, system: e.target.value },
+                                            ...formData.identifiers.slice(index + 1),
+                                            ],
+                                        })
+                                        }
                                     />
-                                    <input 
-                                        type="text" 
-                                        placeholder="Value (e.g., 123456)" 
-                                        id={`${field.name}.value`} 
-                                        onChange={(e) => setFormData({ ...formData, [`${field.name}.value`]: e.target.value })}
+                                    <input
+                                        type="text"
+                                        placeholder="Value (e.g., 123456)"
+                                        onChange={(e) =>
+                                        setFormData({
+                                            ...formData,
+                                            identifiers: [
+                                            ...formData.identifiers.slice(0, index),
+                                            { ...identifier, value: e.target.value },
+                                            ...formData.identifiers.slice(index + 1),
+                                            ],
+                                        })
+                                        }
                                     />
+                                    </div>
+                                ))}
+                                <button onClick={handleAddIdentifier}>Add</button>
+                                <button onClick={() => handleRemoveIdentifier(index)}>Remove</button>
                                 </div>
                             );
+
                         case "Period":
                             return (
                                 <div>
@@ -505,7 +600,7 @@ function FHIREditor(props) {
                             console.log('field.values : ' + field.values)
                             console.log(props)
                             //console.log(field.binding.valueSet)
-                            if (field.values != '') {
+                            if (field.values !== '') {
                                 console.log (field.values)
                                 // Render the component
                                 if (props.field && field.values !== '') {return (
